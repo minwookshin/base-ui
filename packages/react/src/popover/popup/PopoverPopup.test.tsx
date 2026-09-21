@@ -751,6 +751,43 @@ describe('<Popover.Popup />', () => {
       globalThis.BASE_UI_ANIMATIONS_DISABLED = true;
     });
 
+    it('makes closing content inert and restores interaction when reopened before exit completes', async () => {
+      const { user } = await render(
+        <React.Fragment>
+          {/* eslint-disable-next-line react/no-danger */}
+          <style dangerouslySetInnerHTML={{ __html: closingStyle }} />
+          <Popover.Root>
+            <Popover.Trigger>Open</Popover.Trigger>
+            <Popover.Portal>
+              <Popover.Positioner>
+                <Popover.Popup data-testid="popup" className="closing-test-popup">
+                  <button type="button">Inside</button>
+                </Popover.Popup>
+              </Popover.Positioner>
+            </Popover.Portal>
+          </Popover.Root>
+          <button type="button">Next task</button>
+        </React.Fragment>,
+      );
+      const trigger = screen.getByRole('button', { name: 'Open' });
+      await user.click(trigger);
+      const popup = screen.getByTestId('popup');
+      const inside = screen.getByRole('button', { name: 'Inside' });
+      await waitFor(() => expect(inside).toHaveFocus());
+
+      await user.keyboard('{Escape}');
+      await waitFor(() => expect(popup).toHaveAttribute('data-ending-style'));
+      expect(popup.closest('[inert]')).not.toBe(null);
+      await act(async () => inside.focus());
+      expect(trigger).toHaveFocus();
+
+      // Do not finish the animation: this must revive the same mounted content.
+      await user.click(trigger);
+      await waitFor(() => expect(popup).not.toHaveAttribute('data-ending-style'));
+      expect(popup.closest('[inert]')).toBe(null);
+      await waitFor(() => expect(inside).toHaveFocus());
+    });
+
     // The return runs at the logical close. The session must not also install a closed-state
     // subscription whose teardown queues a second return once the animation finishes.
     it('returns focus exactly once across close and unmount', async () => {

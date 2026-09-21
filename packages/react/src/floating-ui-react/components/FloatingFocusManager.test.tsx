@@ -224,6 +224,65 @@ describe('FloatingFocusManager', () => {
     });
 
     describe('prop: returnFocus', () => {
+      test.each([
+        'true',
+        'callback-true',
+        'callback-null',
+        'empty-ref',
+        'element-ref',
+        'element-callback',
+      ] as const)('respects an existing outside focus destination with %s', async (targetKind) => {
+        function Test({ open }: { open: boolean }) {
+          const emptyRef = React.useRef<HTMLElement | null>(null);
+          const targetRef = React.useRef<HTMLButtonElement | null>(null);
+          const { refs, context } = useFloating({ open });
+          const targets = {
+            true: true,
+            'callback-true': () => true,
+            'callback-null': () => null,
+            'empty-ref': emptyRef,
+            'element-ref': targetRef,
+            'element-callback': () => targetRef.current,
+          };
+          return (
+            <>
+              <button ref={refs.setReference} data-testid="reference">
+                Open
+              </button>
+              <FloatingPortal>
+                <FloatingFocusManager
+                  context={context}
+                  modal={false}
+                  closeOnFocusOut={false}
+                  returnFocus={targets[targetKind]}
+                >
+                  <div ref={refs.setFloating}>
+                    <button data-testid="inside">Inside</button>
+                  </div>
+                </FloatingFocusManager>
+              </FloatingPortal>
+              <button data-testid="outside">Next task</button>
+              <button ref={targetRef} data-testid="explicit-target">
+                Explicit target
+              </button>
+            </>
+          );
+        }
+
+        const { rerender } = render(<Test open={false} />);
+        act(() => screen.getByTestId('reference').focus());
+        rerender(<Test open />);
+        await waitFor(() => expect(screen.getByTestId('inside')).toHaveFocus());
+
+        act(() => screen.getByTestId('outside').focus());
+        expect(screen.getByTestId('outside')).toHaveFocus();
+        rerender(<Test open={false} />);
+        await flushMicrotasks();
+
+        const expected = targetKind.startsWith('element-') ? 'explicit-target' : 'outside';
+        expect(screen.getByTestId(expected)).toHaveFocus();
+      });
+
       test('when true', async () => {
         const { rerender } = render(<App />);
 

@@ -1,0 +1,10 @@
+/* A deliberately slow exit for manual inspection; native demo styles are reused. */
+.Popup[data-ending-style] {
+  transition-duration: 1400ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .Popup {
+    transition: none;
+  }
+}
